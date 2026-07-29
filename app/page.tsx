@@ -31,6 +31,7 @@ type StoreData = {
   title: string;
   logo: string;
   logoWidth: number;
+  logoSizeV2?: boolean;
   headerOffset: number;
   info: string;
   notice: string;
@@ -161,7 +162,8 @@ const initialStore = (): StoreData => ({
   name: "하레하레 둔산점",
   title: "하레,하레",
   logo: DEFAULT_LOGO,
-  logoWidth: 150,
+  logoWidth: 75,
+  logoSizeV2: true,
   headerOffset: -8,
   info: "케이크 지름 : 1호(15cm), 2호(18cm), 3호(21cm)\n딸기밭 제품은 옆면에 생크림이 안들어가서 1호 사이즈보다 조금 더 작습니다.",
   notice: "딸기 비수기에는 제철 과일로 대체되고 있습니다.",
@@ -184,7 +186,8 @@ const uid = () => crypto.randomUUID();
 const normalizeStoreData = (item: StoreData): StoreData => ({
   ...item,
   logo: !item.logo || item.logo.endsWith("/harehare-wordmark.png") || item.logo === "/harehare-logo.png" ? DEFAULT_LOGO : item.logo,
-  logoWidth: item.logoWidth || 150,
+  logoWidth: item.logoSizeV2 ? (item.logoWidth || 75) : Math.max(35, Math.round((item.logoWidth || 150) * 0.5)),
+  logoSizeV2: true,
   headerOffset: Number.isFinite(item.headerOffset) ? item.headerOffset : -8,
   twoTierEnabled: item.twoTierEnabled ?? true,
   twoTierTitle: item.twoTierTitle || "2단 케이크 예약 안내",
@@ -556,7 +559,7 @@ export default function Home() {
     "--notice-size": `${store?.styles.notice.size || 10}px`,
     "--notice-color": store?.styles.notice.color,
     "--notice-weight": store?.styles.notice.weight,
-    "--logo-width": `${store?.logoWidth || 150}px`,
+    "--logo-width": `${store?.logoWidth || 75}px`,
     "--header-offset": `${store?.headerOffset ?? -8}px`,
     "--tier-title-size": `${store?.twoTierTitleSize || 12}px`,
     "--tier-text-size": `${store?.twoTierTextSize || 9}px`,
@@ -616,16 +619,8 @@ export default function Home() {
                 <label>색상<input type="color" value={store.styles.notice.color} onChange={(event) => updateStore({ styles: { ...store.styles, notice: { ...store.styles.notice, color: event.target.value } } })} /></label>
               </div>
               <label className="logo-width-control">
-                <span>로고 가로 크기 <b>{store.logoWidth || 150}px</b></span>
-                <input type="range" min="70" max="260" step="2" value={store.logoWidth || 150} onChange={(event) => updateStore({ logoWidth: Number(event.target.value) })} />
-              </label>
-              <label className="logo-width-control">
                 <span>로고·정보칸 세로 위치 <b>{store.headerOffset ?? -8}px</b></span>
                 <input type="range" min="-22" max="24" step="1" value={store.headerOffset ?? -8} onChange={(event) => updateStore({ headerOffset: Number(event.target.value) })} />
-              </label>
-              <label className="field github-image-field">GitHub 로고 이미지 주소
-                <input value={remoteImageValue(store.logo)} onChange={(event) => updateStore({ logo: event.target.value })} onBlur={(event) => updateStore({ logo: normalizeGithubImageUrl(event.target.value) || DEFAULT_LOGO })} placeholder={`${GITHUB_IMAGE_BASE}logo.png`} />
-                <small>공개 저장소의 이미지 주소를 넣으면 다른 PC에서도 자동 표시됩니다.</small>
               </label>
             </details>
             <details className="header-editor two-tier-editor bottom-tool">
@@ -763,6 +758,27 @@ export default function Home() {
           {tab === "stores" && <div className="panel-body">
             <div className="section-heading"><span><b>점포별 저장</b><small>점포마다 메뉴가 따로 보관됩니다</small></span></div>
             <label className="field">점포명<input value={store.name} onChange={(event) => updateStore({ name: event.target.value })} /></label>
+            <details className="header-editor store-logo-editor">
+              <summary><span><b>한글 로고</b><small>작은 기본 크기 · 가로세로 정비례 조절</small></span><i>편집</i></summary>
+              <div className="store-logo-preview">
+                {store.logo ? <img src={store.logo} alt="현재 한글 로고 미리보기" /> : <span>로고 없음</span>}
+              </div>
+              <div className="store-logo-actions">
+                <button type="button" onClick={() => updateStore({ logo: DEFAULT_LOGO, logoWidth: 75, logoSizeV2: true })}>기본 한글 로고 사용</button>
+                <label>로고 사진 바꾸기
+                  <input type="file" accept="image/*" onChange={(event) => imageFile(event, (data) => saveImage(data, "logo.webp", (logo) => updateStore({ logo })))} />
+                </label>
+              </div>
+              <label className="logo-width-control store-logo-size">
+                <span>로고 크기 <b>{store.logoWidth || 75}px</b></span>
+                <input type="range" min="20" max="260" step="1" value={store.logoWidth || 75} onChange={(event) => updateStore({ logoWidth: Number(event.target.value), logoSizeV2: true })} />
+                <small>원본의 가로·세로 비율을 유지한 채 작게 또는 크게 조절됩니다.</small>
+              </label>
+              <label className="field github-image-field">GitHub 로고 이미지 주소
+                <input value={remoteImageValue(store.logo)} onChange={(event) => updateStore({ logo: event.target.value })} onBlur={(event) => updateStore({ logo: normalizeGithubImageUrl(event.target.value) || DEFAULT_LOGO })} placeholder={`${GITHUB_IMAGE_BASE}logo.png`} />
+                <small>공개 저장소의 이미지 주소를 넣으면 다른 PC에서도 자동 표시됩니다.</small>
+              </label>
+            </details>
             <div className="store-list">
               {stores.map((item) => <button key={item.id} className={item.id === activeId ? "active" : ""} onClick={() => { setActiveId(item.id); setSelectedId(item.products[0]?.id || ""); }}>
                 <span>{item.name}</span><small>{item.products.length}개 상품</small>
@@ -771,7 +787,6 @@ export default function Home() {
             <div className="stack-actions">
               <button className="button warm" onClick={addStore}>＋ 새 점포 만들기</button>
               <button className="button ghost" onClick={saveNow}>현재 상태 저장</button>
-              <button className="button ghost" onClick={() => updateStore({ logo: DEFAULT_LOGO })}>하레하레 한글 로고 사용</button>
               <button className="button ghost" onClick={exportStores}>저장 파일 내보내기</button>
               <button className="button ghost" onClick={() => importRef.current?.click()}>저장 파일 불러오기</button>
               <button className="text-danger" onClick={deleteStore}>현재 점포 삭제</button>

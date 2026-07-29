@@ -125,6 +125,36 @@ button { color: inherit; }
 .logo-width-control span { display: flex; justify-content: space-between; }
 .logo-width-control b { color: var(--ink); }
 .logo-width-control input { width: 100%; accent-color: var(--warm); }
+.logo-width-control small { color: var(--muted); font-size: 8px; line-height: 1.45; }
+.store-logo-editor { margin-top: 4px; }
+.store-logo-preview {
+  display: grid;
+  place-items: center;
+  height: 68px;
+  margin-bottom: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+.store-logo-preview img { width: min(75px, 90%); height: auto; max-height: 54px; object-fit: contain; }
+.store-logo-preview span { color: var(--muted); font-size: 9px; }
+.store-logo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+.store-logo-actions button, .store-logo-actions label {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px;
+  background: #fff;
+  color: var(--warm);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.store-logo-actions input { display: none; }
+.store-logo-size { margin-bottom: 11px; }
 .two-tier-editor { background: #f8fbf7; border-color: #d6ded2; }
 .tier-source { display: block; }
 .tier-source button, .tier-source label { display: grid; place-items: center; min-height: 34px; border: 1px solid var(--line); border-radius: 7px; padding: 6px; background: #fff; color: var(--muted); font-size: 9px; font-weight: 700; cursor: pointer; }
@@ -341,7 +371,7 @@ button { color: inherit; }
   cursor: pointer;
   overflow: hidden;
 }
-.logo-space img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+.logo-space img { width: 100%; height: auto; max-height: 100%; object-fit: contain; mix-blend-mode: multiply; }
 .logo-space > span { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #9b715d; }
 .logo-space b { font-family: Georgia, serif; font-size: 13px; }
 .logo-space small { font-size: 7px; }
