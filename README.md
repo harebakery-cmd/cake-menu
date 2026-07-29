@@ -22,6 +22,18 @@
 
 ## GitHub에 제품 사진 올리기
 
+### 메뉴판에서 자동 업로드
+
+1. 메뉴판의 **점포 저장 → GitHub 사진 자동 업로드**를 엽니다.
+2. **토큰 만들기**를 눌러 `harebakery-cmd/cake-menu` 저장소만 선택합니다.
+3. Repository permissions에서 **Contents: Read and write**만 허용합니다.
+4. 생성된 토큰을 메뉴판에 붙여 넣고 **연결 확인**을 누릅니다.
+5. 이후 제품 사진을 선택하거나 끌어놓으면 자동 축소·업로드·주소 입력이 한 번에 처리됩니다.
+
+제품 사진 파일명은 메뉴 순서에 맞춰 `product-01.webp`, `product-02.webp`처럼 자동으로 정해집니다. 로고는 `logo.webp`, 2단 케이크 사진은 `two-tier-cake.webp`로 올라갑니다. 토큰은 점포 저장 파일에는 포함되지 않습니다. 개인 PC에서는 **이 PC에서 연결 유지**를 선택하면 다음 접속에도 자동 업로드가 유지됩니다.
+
+### GitHub에서 직접 업로드
+
 1. 이 저장소의 `public/images` 폴더를 엽니다.
 2. **Add file → Upload files**를 누릅니다.
 3. 제품 사진을 올리고 **Commit changes**를 누릅니다.

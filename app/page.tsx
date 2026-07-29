@@ -47,6 +47,11 @@ const PUBLIC_BASE = import.meta.env.BASE_URL || "/";
 const publicAsset = (name: string) => `${PUBLIC_BASE.replace(/\/?$/, "/")}${name.replace(/^\//, "")}`;
 const DEFAULT_LOGO = publicAsset("harehare-logo.png");
 const GITHUB_IMAGE_BASE = "https://raw.githubusercontent.com/harebakery-cmd/cake-menu/main/public/images/";
+const GITHUB_OWNER = "harebakery-cmd";
+const GITHUB_REPO = "cake-menu";
+const GITHUB_BRANCH = "main";
+const GITHUB_TOKEN_SESSION_KEY = "hare-cake-menu-github-token";
+const GITHUB_TOKEN_LOCAL_KEY = "hare-cake-menu-github-token-remembered";
 
 function normalizeGithubImageUrl(value: string) {
   const trimmed = value.trim();
@@ -56,6 +61,41 @@ function normalizeGithubImageUrl(value: string) {
 
 function remoteImageValue(value: string) {
   return /^(data:|blob:|\/)/i.test(value) ? "" : value;
+}
+
+async function uploadImageToGithub(token: string, fileName: string, dataUrl: string) {
+  const path = `public/images/${fileName}`;
+  const endpoint = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`;
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  let sha: string | undefined;
+  const current = await fetch(`${endpoint}?ref=${GITHUB_BRANCH}`, { headers });
+  if (current.ok) {
+    const currentFile = await current.json();
+    sha = currentFile.sha;
+  } else if (current.status !== 404) {
+    throw new Error(`GitHub 연결 오류 (${current.status})`);
+  }
+
+  const content = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const response = await fetch(endpoint, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: `Update menu image: ${fileName}`,
+      content,
+      branch: GITHUB_BRANCH,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || `GitHub 업로드 오류 (${response.status})`);
+  }
+  return `${GITHUB_IMAGE_BASE}${fileName}?v=${Date.now()}`;
 }
 const stickerOptions: { value: StickerType; label: string }[] = [
   { value: "none", label: "없음" },
@@ -131,7 +171,7 @@ const initialStore = (): StoreData => ({
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const uid = () => crypto.randomUUID();
-const processImageFile = async (file: File, callback: (data: string) => void) => {
+const processImageFile = async (file: File, callback: (data: string) => void | Promise<void>) => {
   if (!file.type.startsWith("image/")) {
     alert("JPG, PNG 또는 WebP 사진 파일을 넣어주세요.");
     return;
@@ -210,14 +250,14 @@ const processImageFile = async (file: File, callback: (data: string) => void) =>
       quality -= 0.08;
       data = canvas.toDataURL("image/webp", quality);
     }
-    callback(data);
+    await callback(data);
   } catch {
     alert("사진을 변환하지 못했습니다. JPG, PNG 또는 WebP 파일을 선택해 주세요.");
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
 };
-const imageFile = async (event: ChangeEvent<HTMLInputElement>, callback: (data: string) => void) => {
+const imageFile = async (event: ChangeEvent<HTMLInputElement>, callback: (data: string) => void | Promise<void>) => {
   const file = event.target.files?.[0];
   event.target.value = "";
   if (file) await processImageFile(file, callback);
@@ -230,7 +270,21 @@ export default function Home() {
   const [tab, setTab] = useState<"menu" | "stores" | "type" | "print">("menu");
   const [selectedId, setSelectedId] = useState("");
   const [savedPulse, setSavedPulse] = useState(false);
+  const [githubToken, setGithubToken] = useState("");
+  const [githubTokenDraft, setGithubTokenDraft] = useState("");
+  const [rememberGithubToken, setRememberGithubToken] = useState(false);
+  const [githubUploadState, setGithubUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [githubUploadMessage, setGithubUploadMessage] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const rememberedToken = localStorage.getItem(GITHUB_TOKEN_LOCAL_KEY) || "";
+    const sessionToken = sessionStorage.getItem(GITHUB_TOKEN_SESSION_KEY) || "";
+    const token = rememberedToken || sessionToken;
+    setGithubToken(token);
+    setGithubTokenDraft(token);
+    setRememberGithubToken(Boolean(rememberedToken));
+  }, []);
 
   useEffect(() => {
     try {
@@ -298,6 +352,70 @@ export default function Home() {
   };
   const updateProduct = (id: string, patch: Partial<Product>) => {
     updateStore({ products: store.products.map((item) => item.id === id ? { ...item, ...patch } : item) });
+  };
+  const saveGithubConnection = async () => {
+    const token = githubTokenDraft.trim();
+    if (!token) {
+      alert("GitHub 토큰을 입력해 주세요.");
+      return;
+    }
+    setGithubUploadState("uploading");
+    setGithubUploadMessage("연결 확인 중");
+    try {
+      const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`, {
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${token}`,
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      });
+      if (!response.ok) throw new Error(`GitHub 연결 오류 (${response.status})`);
+      if (rememberGithubToken) {
+        localStorage.setItem(GITHUB_TOKEN_LOCAL_KEY, token);
+        sessionStorage.removeItem(GITHUB_TOKEN_SESSION_KEY);
+      } else {
+        sessionStorage.setItem(GITHUB_TOKEN_SESSION_KEY, token);
+        localStorage.removeItem(GITHUB_TOKEN_LOCAL_KEY);
+      }
+      setGithubToken(token);
+      setGithubUploadState("success");
+      setGithubUploadMessage("연결됨 · 사진 선택 시 자동 업로드");
+    } catch (error) {
+      setGithubUploadState("error");
+      setGithubUploadMessage(error instanceof Error ? error.message : "GitHub 연결에 실패했습니다.");
+    }
+  };
+  const disconnectGithub = () => {
+    sessionStorage.removeItem(GITHUB_TOKEN_SESSION_KEY);
+    localStorage.removeItem(GITHUB_TOKEN_LOCAL_KEY);
+    setGithubToken("");
+    setGithubTokenDraft("");
+    setGithubUploadState("idle");
+    setGithubUploadMessage("연결 해제됨");
+  };
+  const saveImage = async (data: string, fileName: string, applyImage: (image: string) => void) => {
+    applyImage(data);
+    if (!githubToken) {
+      setGithubUploadState("idle");
+      setGithubUploadMessage("GitHub 연결 전 · 이 브라우저에만 저장됨");
+      return;
+    }
+    setGithubUploadState("uploading");
+    setGithubUploadMessage(`${fileName} 자동 업로드 중`);
+    try {
+      const remoteUrl = await uploadImageToGithub(githubToken, fileName, data);
+      applyImage(remoteUrl);
+      setGithubUploadState("success");
+      setGithubUploadMessage(`${fileName} GitHub 업로드 완료`);
+    } catch (error) {
+      setGithubUploadState("error");
+      setGithubUploadMessage(error instanceof Error ? error.message : "GitHub 업로드에 실패했습니다.");
+    }
+  };
+  const saveProductImage = async (data: string, productId: string) => {
+    const index = store.products.findIndex((item) => item.id === productId);
+    const fileName = `product-${String(Math.max(0, index) + 1).padStart(2, "0")}.webp`;
+    await saveImage(data, fileName, (image) => updateProduct(productId, { image }));
   };
   const saveNow = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stores));
@@ -466,7 +584,7 @@ export default function Home() {
               </div>
               <div className="tier-source">
                 <label className={store.twoTierImage ? "active" : ""}>
-                  <input type="file" accept="image/*" onChange={(event) => imageFile(event, (twoTierImage) => updateStore({ twoTierImage }))} />
+                  <input type="file" accept="image/*" onChange={(event) => imageFile(event, (data) => saveImage(data, "two-tier-cake.webp", (twoTierImage) => updateStore({ twoTierImage })))} />
                   {store.twoTierImage ? "2단 케이크 사진 바꾸기" : "2단 케이크 사진 올리기"}
                 </label>
               </div>
@@ -509,13 +627,14 @@ export default function Home() {
                   event.preventDefault();
                   event.currentTarget.classList.remove("dragging");
                   const file = event.dataTransfer.files?.[0];
-                  if (file) void processImageFile(file, (image) => updateProduct(product.id, { image }));
+                  if (file) void processImageFile(file, (data) => saveProductImage(data, product.id));
                 }}
               >
-                <input type="file" accept="image/*" onChange={(event) => imageFile(event, (image) => updateProduct(product.id, { image }))} />
+                <input type="file" accept="image/*" onChange={(event) => imageFile(event, (data) => saveProductImage(data, product.id))} />
                 <span className="upload-preview">{product.image ? <img src={product.image} alt={`${product.name} 미리보기`} /> : <i>＋</i>}</span>
-                <span><b>{product.image ? "사진 바꾸기" : "제품 사진 올리기"}</b><small>{store.products.findIndex((item) => item.id === product.id) >= 2 ? "사진 전체 비율 유지 · 클릭 또는 드래그" : "클릭하거나 사진을 끌어놓기 · 자동 축소"}</small></span>
+                <span><b>{product.image ? "사진 바꾸기" : "제품 사진 올리기"}</b><small>{githubToken ? "클릭 또는 드래그 · 자동 축소 후 GitHub 업로드" : "클릭 또는 드래그 · GitHub 연결 시 자동 업로드"}</small></span>
               </label>
+              {githubUploadMessage && <p className={`github-upload-status ${githubUploadState}`}>{githubUploadState === "uploading" ? "● " : githubUploadState === "success" ? "✓ " : githubUploadState === "error" ? "! " : ""}{githubUploadMessage}</p>}
               <label className="field github-image-field">GitHub 제품 이미지 주소
                 <input value={remoteImageValue(product.image)} onChange={(event) => updateProduct(product.id, { image: event.target.value })} onBlur={(event) => updateProduct(product.id, { image: normalizeGithubImageUrl(event.target.value) })} placeholder={`${GITHUB_IMAGE_BASE}product-name.png`} />
                 <small>GitHub의 파일 링크를 붙여 넣어도 자동으로 실제 이미지 주소로 바뀝니다.</small>
@@ -589,6 +708,24 @@ export default function Home() {
             </div>
             <input ref={importRef} hidden type="file" accept=".json,application/json" onChange={importStores} />
             <p className="helper">자동 저장은 현재 브라우저에 보관됩니다. 다른 컴퓨터로 옮길 때는 저장 파일을 내보내세요.</p>
+            <details className="github-connect-card" open={!githubToken}>
+              <summary>
+                <span><b>GitHub 사진 자동 업로드</b><small>{githubToken ? "연결됨 · 사진 선택만 하면 자동 등록" : "처음 한 번만 업로드 권한 연결"}</small></span>
+                <i>{githubToken ? "연결됨" : "설정"}</i>
+              </summary>
+              <p>사진을 선택하면 자동 축소한 뒤 <code>public/images</code>에 올리고 메뉴판 주소도 자동으로 바꿉니다.</p>
+              <label className="field">GitHub 토큰
+                <input type="password" autoComplete="off" value={githubTokenDraft} onChange={(event) => setGithubTokenDraft(event.target.value)} placeholder="github_pat_..." />
+                <small>cake-menu 저장소의 Contents 읽기·쓰기 권한만 사용하세요.</small>
+              </label>
+              <label className="check-row github-remember-check"><input type="checkbox" checked={rememberGithubToken} onChange={(event) => setRememberGithubToken(event.target.checked)} /><span>이 PC에서 연결 유지</span><small>개인 PC에서만 선택하세요</small></label>
+              <div className="github-connect-actions">
+                <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">토큰 만들기</a>
+                <button type="button" onClick={saveGithubConnection}>연결 확인</button>
+                {githubToken && <button type="button" className="disconnect" onClick={disconnectGithub}>연결 해제</button>}
+              </div>
+              {githubUploadMessage && <p className={`github-upload-status ${githubUploadState}`}>{githubUploadState === "uploading" ? "● " : githubUploadState === "success" ? "✓ " : githubUploadState === "error" ? "! " : ""}{githubUploadMessage}</p>}
+            </details>
           </div>}
 
           {tab === "type" && <div className="panel-body">
@@ -638,7 +775,7 @@ export default function Home() {
               <div className="menu-border">
                 <header className="menu-header">
                   <label className="logo-space">
-                    <input type="file" accept="image/*" onChange={(event) => imageFile(event, (logo) => updateStore({ logo }))} />
+                    <input type="file" accept="image/*" onChange={(event) => imageFile(event, (data) => saveImage(data, "logo.webp", (logo) => updateStore({ logo })))} />
                     {store.logo ? <img src={store.logo} alt="점포 로고" /> : <span><b>{store.title}</b><small>로고 공간 · 클릭하여 업로드</small></span>}
                   </label>
                   <textarea className="info-input" value={store.info} onChange={(event) => updateStore({ info: event.target.value })} aria-label="상단 안내 정보" />

@@ -213,6 +213,27 @@ button { color: inherit; }
 .upload-card small { color: var(--muted); font-size: 10px; }
 .github-image-field { margin-top: -2px; }
 .github-image-field small { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; font-weight: 500; line-height: 1.4; }
+.github-upload-status { margin: -4px 0 11px; border-radius: 6px; padding: 7px 9px; background: #f4f0ea; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.github-upload-status.uploading { color: #87674f; background: #f7eee7; }
+.github-upload-status.success { color: #54704d; background: #edf5ea; }
+.github-upload-status.error { color: #a4433b; background: #fbebe8; }
+.github-connect-card { margin-top: 18px; border: 1px solid var(--line); border-radius: 9px; padding: 0 11px; background: #fffaf6; }
+.github-connect-card summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 0; cursor: pointer; list-style: none; }
+.github-connect-card summary::-webkit-details-marker { display: none; }
+.github-connect-card summary span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.github-connect-card summary b { font-size: 11px; }
+.github-connect-card summary small { color: var(--muted); font-size: 9px; font-weight: 500; }
+.github-connect-card summary i { border-radius: 20px; padding: 3px 7px; background: #eee6dd; color: #87674f; font-size: 9px; font-style: normal; font-weight: 700; white-space: nowrap; }
+.github-connect-card > p { margin: 0 0 10px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.github-connect-card code { color: #6f5747; font-size: 9px; }
+.github-connect-card .field { margin-bottom: 9px; }
+.github-remember-check { margin: 0 0 10px; font-size: 10px; }
+.github-remember-check small { margin-left: auto; color: var(--muted); font-size: 8px; font-weight: 500; }
+.github-connect-actions { display: flex; gap: 6px; margin: 0 0 11px; }
+.github-connect-actions a, .github-connect-actions button { flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 7px 5px; background: #fff; color: var(--ink); font-size: 9px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; }
+.github-connect-actions button:not(.disconnect) { border-color: #bc8a70; background: #a96e50; color: #fff; }
+.github-connect-actions .disconnect { color: #a4433b; }
+.github-connect-card .github-upload-status { margin: 0 0 11px; }
 .check-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 13px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .check-row input { accent-color: var(--warm); }
 .editor-actions { display: flex; gap: 6px; }
