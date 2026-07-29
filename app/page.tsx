@@ -568,6 +568,9 @@ export default function Home() {
     "--tier-title-size": `${store?.twoTierTitleSize || 12}px`,
     "--tier-text-size": `${store?.twoTierTextSize || 9}px`,
     "--text-line-height": store?.lineHeight || 1.25,
+    "--secondary-name-row": `${Math.ceil((store?.styles.name.size || 12) * (store?.lineHeight || 1.25))}px`,
+    "--secondary-info-row": `${Math.ceil((store?.styles.productInfo.size || 8) * (store?.lineHeight || 1.25))}px`,
+    "--secondary-base-row": `${Math.ceil((store?.styles.base.size || 11) * (store?.lineHeight || 1.25))}px`,
   } as CSSProperties), [columns, store]);
 
   if (!ready || !store) return <main className="loading">메뉴판을 준비하고 있어요…</main>;
