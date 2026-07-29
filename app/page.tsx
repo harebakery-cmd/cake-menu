@@ -9,6 +9,7 @@ type Product = {
   id: string;
   name: string;
   image: string;
+  infoText?: string;
   imageScale?: number;
   imageZoom?: number;
   imageWidth?: number;
@@ -18,10 +19,12 @@ type Product = {
   featuredOptions?: FeaturedOption[];
   options: SizeOption[];
   sticker?: StickerType;
+  stickerImage?: string;
   icon?: string;
+  iconImage?: string;
 };
 type TypeStyle = { size: number; color: string; weight: number };
-type TypeKey = "name" | "base" | "reservation" | "details" | "info" | "notice";
+type TypeKey = "name" | "base" | "reservation" | "details" | "productInfo" | "info" | "notice";
 type StoreData = {
   id: string;
   name: string;
@@ -37,8 +40,11 @@ type StoreData = {
   twoTierTitleSize: number;
   twoTierTextSize: number;
   twoTierImage: string;
+  customIconSamples: string[];
+  customStickerSamples: string[];
   products: Product[];
   styles: Record<TypeKey, TypeStyle>;
+  lineHeight: number;
   paper: "a4" | "a5";
 };
 
@@ -111,6 +117,7 @@ const defaultStyles: Record<TypeKey, TypeStyle> = {
   base: { size: 14, color: "#514b46", weight: 500 },
   reservation: { size: 12, color: "#a64f43", weight: 800 },
   details: { size: 12, color: "#514b46", weight: 500 },
+  productInfo: { size: 10, color: "#c7362f", weight: 700 },
   info: { size: 11, color: "#2b2927", weight: 650 },
   notice: { size: 10, color: "#a04d43", weight: 700 },
 };
@@ -164,13 +171,48 @@ const initialStore = (): StoreData => ({
   twoTierTitleSize: 12,
   twoTierTextSize: 9,
   twoTierImage: "",
+  customIconSamples: [],
+  customStickerSamples: [],
   products: sampleProducts,
   styles: defaultStyles,
+  lineHeight: 1.25,
   paper: "a4",
 });
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const uid = () => crypto.randomUUID();
+const normalizeStoreData = (item: StoreData): StoreData => ({
+  ...item,
+  logo: !item.logo || item.logo.endsWith("/harehare-wordmark.png") || item.logo === "/harehare-logo.png" ? DEFAULT_LOGO : item.logo,
+  logoWidth: item.logoWidth || 150,
+  headerOffset: Number.isFinite(item.headerOffset) ? item.headerOffset : -8,
+  twoTierEnabled: item.twoTierEnabled ?? true,
+  twoTierTitle: item.twoTierTitle || "2단 케이크 예약 안내",
+  twoTierText: item.twoTierText || "3일 전에 예약 가능\n케이크 다리값 7,000원 추가\n생크림·키리쉬만 주문 가능",
+  twoTierTitleSize: item.twoTierTitleSize || 12,
+  twoTierTextSize: item.twoTierTextSize || 9,
+  twoTierImage: item.twoTierImage || "",
+  customIconSamples: item.customIconSamples || [],
+  customStickerSamples: item.customStickerSamples || [],
+  lineHeight: item.lineHeight || 1.25,
+  products: item.products.map((product, index) => {
+    if (index >= 2) return { ...product, infoText: product.infoText || "" };
+    const isSmallSize = (size: string) => {
+      const number = Number(size.match(/\d+/)?.[0] || 0);
+      return number > 0 && number < 3;
+    };
+    const featuredOptions = product.featuredOptions?.length
+      ? product.featuredOptions
+      : product.options.filter((option) => isSmallSize(option.size)).map(({ size, price }) => ({ size, price }));
+    return {
+      ...product,
+      infoText: product.infoText || "",
+      featuredOptions,
+      options: product.options.filter((option) => !isSmallSize(option.size)),
+    };
+  }),
+  styles: { ...defaultStyles, ...item.styles },
+});
 const processImageFile = async (file: File, callback: (data: string) => void | Promise<void>) => {
   if (!file.type.startsWith("image/")) {
     alert("JPG, PNG 또는 WebP 사진 파일을 넣어주세요.");
@@ -262,6 +304,29 @@ const imageFile = async (event: ChangeEvent<HTMLInputElement>, callback: (data: 
   event.target.value = "";
   if (file) await processImageFile(file, callback);
 };
+const sampleImageFile = async (event: ChangeEvent<HTMLInputElement>, callback: (data: string) => void | Promise<void>) => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  await processImageFile(file, async (data) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = data;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 96;
+    canvas.height = 96;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("canvas");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    const scale = Math.min(84 / image.naturalWidth, 84 / image.naturalHeight);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    context.drawImage(image, Math.round((96 - width) / 2), Math.round((96 - height) / 2), width, height);
+    await callback(canvas.toDataURL("image/webp", 0.92));
+  });
+};
 
 export default function Home() {
   const [stores, setStores] = useState<StoreData[]>([]);
@@ -291,34 +356,7 @@ export default function Home() {
       const stored = localStorage.getItem(STORAGE_KEY);
       const parsed = stored ? JSON.parse(stored) : [];
       const next = Array.isArray(parsed) && parsed.length
-        ? parsed.map((item: StoreData) => ({
-          ...item,
-          logo: !item.logo || item.logo.endsWith("/harehare-wordmark.png") || item.logo === "/harehare-logo.png" ? DEFAULT_LOGO : item.logo,
-          logoWidth: item.logoWidth || 150,
-          headerOffset: Number.isFinite(item.headerOffset) ? item.headerOffset : -8,
-          twoTierEnabled: item.twoTierEnabled ?? true,
-          twoTierTitle: item.twoTierTitle || "2단 케이크 예약 안내",
-          twoTierText: item.twoTierText || "3일 전에 예약 가능\n케이크 다리값 7,000원 추가\n생크림·키리쉬만 주문 가능",
-          twoTierTitleSize: item.twoTierTitleSize || 12,
-          twoTierTextSize: item.twoTierTextSize || 9,
-          twoTierImage: item.twoTierImage || "",
-          products: item.products.map((product, index) => {
-            if (index >= 2) return product;
-            const isSmallSize = (size: string) => {
-              const number = Number(size.match(/\d+/)?.[0] || 0);
-              return number > 0 && number < 3;
-            };
-            const featuredOptions = product.featuredOptions?.length
-              ? product.featuredOptions
-              : product.options.filter((option) => isSmallSize(option.size)).map(({ size, price }) => ({ size, price }));
-            return {
-              ...product,
-              featuredOptions,
-              options: product.options.filter((option) => !isSmallSize(option.size)),
-            };
-          }),
-          styles: { ...defaultStyles, ...item.styles },
-          }))
+        ? parsed.map((item: StoreData) => normalizeStoreData(item))
         : [initialStore()];
       setStores(next);
       setActiveId(next[0].id);
@@ -417,6 +455,18 @@ export default function Home() {
     const fileName = `product-${String(Math.max(0, index) + 1).padStart(2, "0")}.webp`;
     await saveImage(data, fileName, (image) => updateProduct(productId, { image }));
   };
+  const addCustomSample = async (event: ChangeEvent<HTMLInputElement>, kind: "icon" | "sticker", productId: string) => {
+    const samples = kind === "icon" ? (store.customIconSamples || []) : (store.customStickerSamples || []);
+    const fileName = `${kind}-sample-${String(samples.length + 1).padStart(2, "0")}.webp`;
+    await sampleImageFile(event, (data) => saveImage(data, fileName, (image) => {
+      const products = store.products.map((item) => item.id !== productId ? item : kind === "icon"
+        ? { ...item, icon: "", iconImage: image }
+        : { ...item, sticker: "none" as StickerType, stickerImage: image });
+      updateStore(kind === "icon"
+        ? { customIconSamples: [...samples, image], products }
+        : { customStickerSamples: [...samples, image], products });
+    }));
+  };
   const saveNow = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stores));
     setSavedPulse(true);
@@ -472,10 +522,11 @@ export default function Home() {
     try {
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.stores) || !data.stores.length) throw new Error();
-      setStores(data.stores);
-      setActiveId(data.stores[0].id);
-      setSelectedId(data.stores[0].products?.[0]?.id || "");
-      alert(`${data.stores.length}개 점포를 불러왔습니다.`);
+      const imported = data.stores.map((item: StoreData) => normalizeStoreData(item));
+      setStores(imported);
+      setActiveId(imported[0].id);
+      setSelectedId(imported[0].products?.[0]?.id || "");
+      alert(`${imported.length}개 점포를 불러왔습니다.`);
     } catch {
       alert("올바른 메뉴판 저장 파일이 아닙니다.");
     }
@@ -496,6 +547,9 @@ export default function Home() {
     "--details-size": `${store?.styles.details.size || 12}px`,
     "--details-color": store?.styles.details.color,
     "--details-weight": store?.styles.details.weight,
+    "--product-info-size": `${store?.styles.productInfo.size || 10}px`,
+    "--product-info-color": store?.styles.productInfo.color,
+    "--product-info-weight": store?.styles.productInfo.weight,
     "--info-size": `${store?.styles.info.size || 11}px`,
     "--info-color": store?.styles.info.color,
     "--info-weight": store?.styles.info.weight,
@@ -506,6 +560,7 @@ export default function Home() {
     "--header-offset": `${store?.headerOffset ?? -8}px`,
     "--tier-title-size": `${store?.twoTierTitleSize || 12}px`,
     "--tier-text-size": `${store?.twoTierTextSize || 9}px`,
+    "--text-line-height": store?.lineHeight || 1.25,
   } as CSSProperties), [columns, store]);
 
   if (!ready || !store) return <main className="loading">메뉴판을 준비하고 있어요…</main>;
@@ -646,6 +701,17 @@ export default function Home() {
                 </label>
                 <button type="button" onClick={() => updateProduct(product.id, { imageScale: 0.8 })}>80%로 초기화</button>
               </div>}
+              {store.products.findIndex((item) => item.id === product.id) >= 2 && <div className="product-info-editor">
+                <label className="field">제품 정보 문구
+                  <input value={product.infoText || ""} onChange={(event) => updateProduct(product.id, { infoText: event.target.value })} placeholder="예: 딸기 비수기에는 제철 과일로 변경" />
+                  <small>메뉴 3번부터 제품명과 호수·가격 사이에 표시됩니다.</small>
+                </label>
+                <div className="type-grid product-info-style">
+                  <label>크기<input type="number" min="7" max="24" value={store.styles.productInfo.size} onChange={(event) => updateStore({ styles: { ...store.styles, productInfo: { ...store.styles.productInfo, size: Number(event.target.value) } } })} /></label>
+                  <label>굵기<select value={store.styles.productInfo.weight} onChange={(event) => updateStore({ styles: { ...store.styles, productInfo: { ...store.styles.productInfo, weight: Number(event.target.value) } } })}><option value="400">보통</option><option value="500">중간</option><option value="700">굵게</option><option value="800">아주 굵게</option></select></label>
+                  <label>색상<span className="color-control"><input type="color" value={store.styles.productInfo.color} onChange={(event) => updateStore({ styles: { ...store.styles, productInfo: { ...store.styles.productInfo, color: event.target.value } } })} /><code>{store.styles.productInfo.color}</code></span></label>
+                </div>
+              </div>}
               <label className="check-row"><input type="checkbox" checked={product.reservation} onChange={(event) => updateProduct(product.id, { reservation: event.target.checked })} /><span>예약 주문만 가능</span></label>
               <div className="repeat-field"><label className="field">추가 규격 <small>3호부터 입력 · 개수 제한 없음 · 한 줄에 호수 | 치수 | 가격</small>
                 <textarea rows={5} value={product.options.map((option) => option.size || option.dimension || option.price ? `${option.size} | ${option.dimension} | ${option.price}` : "").join("\n")} onChange={(event) => updateProduct(product.id, {
@@ -659,12 +725,16 @@ export default function Home() {
                 <summary><span><b>아이콘 · 스티커</b><small>선택 상품 사진 위에 표시</small></span><i>편집</i></summary>
                 <span className="picker-label">스티커</span>
                 <div className="sticker-picker">
-                  {stickerOptions.map((option) => <button type="button" key={option.value} className={(product.sticker || "none") === option.value ? `active ${option.value}` : option.value} onClick={() => updateProduct(product.id, { sticker: option.value })}>{option.label}</button>)}
+                  {stickerOptions.map((option) => <button type="button" key={option.value} className={!product.stickerImage && (product.sticker || "none") === option.value ? `active ${option.value}` : option.value} onClick={() => updateProduct(product.id, { sticker: option.value, stickerImage: "" })}>{option.label}</button>)}
+                  {(store.customStickerSamples || []).map((sample, index) => <button type="button" key={`${sample}-${index}`} className={`sample-picker ${product.stickerImage === sample ? "active" : ""}`} onClick={() => updateProduct(product.id, { sticker: "none", stickerImage: sample })}><img src={sample} alt={`사용자 스티커 ${index + 1}`} /></button>)}
                 </div>
+                <label className="sample-upload-button">＋ 스티커 이미지 추가 <small>96 × 96px 자동 규격</small><input type="file" accept="image/*" onChange={(event) => addCustomSample(event, "sticker", product.id)} /></label>
                 <span className="picker-label">아이콘</span>
                 <div className="icon-picker">
-                  {iconOptions.map((icon, index) => <button type="button" key={`${icon}-${index}`} className={(product.icon || "") === icon ? "active" : ""} onClick={() => updateProduct(product.id, { icon })}>{icon || "없음"}</button>)}
+                  {iconOptions.map((icon, index) => <button type="button" key={`${icon}-${index}`} className={!product.iconImage && (product.icon || "") === icon ? "active" : ""} onClick={() => updateProduct(product.id, { icon, iconImage: "" })}>{icon || "없음"}</button>)}
+                  {(store.customIconSamples || []).map((sample, index) => <button type="button" key={`${sample}-${index}`} className={`sample-picker ${product.iconImage === sample ? "active" : ""}`} onClick={() => updateProduct(product.id, { icon: "", iconImage: sample })}><img src={sample} alt={`사용자 아이콘 ${index + 1}`} /></button>)}
                 </div>
+                <label className="sample-upload-button">＋ 아이콘 이미지 추가 <small>96 × 96px 자동 규격</small><input type="file" accept="image/*" onChange={(event) => addCustomSample(event, "icon", product.id)} /></label>
               </details>
               <div className="quick-type">
                 <div className="quick-type-head">
@@ -731,11 +801,16 @@ export default function Home() {
           {tab === "type" && <div className="panel-body">
             <div className="section-heading"><span><b>글자 스타일</b><small>기본 글꼴은 Pretendard입니다</small></span></div>
             <div className="font-family-card"><span>글꼴</span><b>Pretendard</b><small>가독성이 좋은 한국어 기본 서체</small></div>
+            <label className="line-height-control">
+              <span>전체 글자 줄 간격 <b>{(store.lineHeight || 1.25).toFixed(2)}</b></span>
+              <input type="range" min="0.9" max="1.8" step="0.05" value={store.lineHeight || 1.25} onChange={(event) => updateStore({ lineHeight: Number(event.target.value) })} />
+            </label>
             {([
               ["name", "제품명"],
               ["base", "대표 호수 · 가격"],
               ["reservation", "예약주문 문구"],
               ["details", "호수 · 치수 · 가격"],
+              ["productInfo", "메뉴 3번부터 정보 문구"],
               ["info", "상단 기본 안내문"],
               ["notice", "상단 강조 안내문"],
             ] as [TypeKey, string][]).map(([key, label]) => <div className="type-control" key={key}>
@@ -818,14 +893,15 @@ function MenuProduct({ product, main = false, selected, onSelect }: { product: P
   return <button className={`menu-product ${main ? "main-product" : ""} ${selected ? "editing" : ""}`} style={{
     "--image-scale": main ? 1 : imageScale,
   } as CSSProperties} onClick={onSelect}>
-    <div className="cake-image">
-      {product.image ? <img src={product.image} alt={product.name} /> : <span className="cake-placeholder"><i>🍰</i><small>사진 추가</small></span>}
-      {product.icon && <span className="product-icon" aria-hidden="true">{product.icon}</span>}
-      {product.sticker && product.sticker !== "none" && <span className={`product-sticker ${product.sticker}`}>{stickerOptions.find((item) => item.value === product.sticker)?.label}</span>}
-    </div>
-    <div className="product-copy">
-      <b className="product-name">{product.name}</b>
-      <span className="base-line">{product.baseSize} <strong>{product.basePrice}</strong></span>
+      <div className="cake-image">
+        {product.image ? <img src={product.image} alt={product.name} /> : <span className="cake-placeholder"><i>🍰</i><small>사진 추가</small></span>}
+        {product.iconImage ? <span className="product-icon custom-visual" aria-hidden="true"><img src={product.iconImage} alt="" /></span> : product.icon && <span className="product-icon" aria-hidden="true">{product.icon}</span>}
+        {product.stickerImage ? <span className="product-sticker custom-visual" aria-hidden="true"><img src={product.stickerImage} alt="" /></span> : product.sticker && product.sticker !== "none" && <span className={`product-sticker ${product.sticker}`}>{stickerOptions.find((item) => item.value === product.sticker)?.label}</span>}
+      </div>
+      <div className="product-copy">
+        <b className="product-name">{product.name}</b>
+        {!main && product.infoText && <span className="product-info-line">{product.infoText}</span>}
+        <span className="base-line">{product.baseSize} <strong>{product.basePrice}</strong></span>
       {main && (product.featuredOptions || []).filter((option) => option.size || option.price).map((option, index) => <span className="base-line featured-line" key={`${option.size}-${index}`}>{option.size} <strong>{option.price}</strong></span>)}
       {product.reservation && <em>*예약 주문만 가능*</em>}
       {product.options.filter((option) => option.size || option.dimension || option.price).map((option, index) => <span className="option-line" key={`${option.size}-${index}`}><b>{option.size}</b>{option.dimension && <i>({option.dimension})</i>} <strong>{option.price}</strong></span>)}
