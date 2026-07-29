@@ -33,6 +33,7 @@ type StoreData = {
   logoWidth: number;
   logoSizeV2?: boolean;
   headerOffset: number;
+  contentOffset?: number;
   info: string;
   notice: string;
   twoTierEnabled: boolean;
@@ -165,6 +166,7 @@ const initialStore = (): StoreData => ({
   logoWidth: 75,
   logoSizeV2: true,
   headerOffset: -8,
+  contentOffset: -22,
   info: "케이크 지름 : 1호(15cm), 2호(18cm), 3호(21cm)\n딸기밭 제품은 옆면에 생크림이 안들어가서 1호 사이즈보다 조금 더 작습니다.",
   notice: "딸기 비수기에는 제철 과일로 대체되고 있습니다.",
   twoTierEnabled: true,
@@ -189,6 +191,7 @@ const normalizeStoreData = (item: StoreData): StoreData => ({
   logoWidth: item.logoSizeV2 ? (item.logoWidth || 75) : Math.max(35, Math.round((item.logoWidth || 150) * 0.5)),
   logoSizeV2: true,
   headerOffset: Number.isFinite(item.headerOffset) ? item.headerOffset : -8,
+  contentOffset: Number.isFinite(item.contentOffset) ? item.contentOffset : -22,
   twoTierEnabled: item.twoTierEnabled ?? true,
   twoTierTitle: item.twoTierTitle || "2단 케이크 예약 안내",
   twoTierText: item.twoTierText || "3일 전에 예약 가능\n케이크 다리값 7,000원 추가\n생크림·키리쉬만 주문 가능",
@@ -561,6 +564,7 @@ export default function Home() {
     "--notice-weight": store?.styles.notice.weight,
     "--logo-width": `${store?.logoWidth || 75}px`,
     "--header-offset": `${store?.headerOffset ?? -8}px`,
+    "--content-offset": `${store?.contentOffset ?? -22}px`,
     "--tier-title-size": `${store?.twoTierTitleSize || 12}px`,
     "--tier-text-size": `${store?.twoTierTextSize || 9}px`,
     "--text-line-height": store?.lineHeight || 1.25,
@@ -621,6 +625,11 @@ export default function Home() {
               <label className="logo-width-control">
                 <span>로고·정보칸 세로 위치 <b>{store.headerOffset ?? -8}px</b></span>
                 <input type="range" min="-22" max="24" step="1" value={store.headerOffset ?? -8} onChange={(event) => updateStore({ headerOffset: Number(event.target.value) })} />
+              </label>
+              <label className="logo-width-control">
+                <span>메뉴 본문 세로 위치 <b>{store.contentOffset ?? -22}px</b></span>
+                <input type="range" min="-40" max="10" step="1" value={store.contentOffset ?? -22} onChange={(event) => updateStore({ contentOffset: Number(event.target.value) })} />
+                <small>로고부터 2단 케이크 안내까지만 이동합니다. 하단 선과 점포명은 고정됩니다.</small>
               </label>
             </details>
             <details className="header-editor two-tier-editor bottom-tool">
