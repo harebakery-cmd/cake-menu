@@ -405,9 +405,10 @@ export default function Home() {
   const printScale = sheetWidth * (96 / 25.4) / designWidth;
   const secondaryCount = Math.max(0, (store?.products.length || 0) - 2);
   const columns = landscape
-    ? secondaryCount <= 6 ? 3 : secondaryCount <= 12 ? 4 : 5
+    ? secondaryCount <= 4 ? 3 : secondaryCount <= 6 ? 4 : secondaryCount === 7 ? 3 : secondaryCount === 8 ? 5 : secondaryCount <= 10 ? 4 : 5
     : secondaryCount <= 4 ? Math.min(4, Math.max(2, secondaryCount)) : secondaryCount <= 9 ? 3 : 4;
   const rows = secondaryCount ? Math.ceil(secondaryCount / columns) : 0;
+  const landscapeRows = Math.max(1, Math.ceil((secondaryCount + (store?.twoTierEnabled ? 2 : 0)) / columns));
 
   const updateStore = (patch: Partial<StoreData>) => {
     setStores((current) => current.map((item) => item.id === activeId ? { ...item, ...patch } : item));
@@ -559,6 +560,7 @@ export default function Home() {
 
   const pageStyle = useMemo(() => ({
     "--menu-cols": columns,
+    "--landscape-rows": landscapeRows,
     "--name-size": `${store?.styles.name.size || 15}px`,
     "--name-color": store?.styles.name.color,
     "--name-weight": store?.styles.name.weight,
@@ -589,9 +591,19 @@ export default function Home() {
     "--secondary-name-row": `${Math.ceil((store?.styles.name.size || 12) * (store?.lineHeight || 1.25))}px`,
     "--secondary-info-row": `${Math.ceil((store?.styles.productInfo.size || 8) * (store?.lineHeight || 1.25))}px`,
     "--secondary-base-row": `${Math.ceil((store?.styles.base.size || 11) * (store?.lineHeight || 1.25))}px`,
-  } as CSSProperties), [columns, store]);
+  } as CSSProperties), [columns, landscapeRows, store]);
 
   if (!ready || !store) return <main className="loading">메뉴판을 준비하고 있어요…</main>;
+
+  const twoTierPanel = <div className="two-tier-panel">
+    <div className="two-tier-image">
+      {store.twoTierImage ? <img src={store.twoTierImage} alt="2단 케이크 안내" /> : <span>🎂<small>별도 사진 추가</small></span>}
+    </div>
+    <div className="two-tier-copy">
+      <b>{store.twoTierTitle}</b>
+      <p>{store.twoTierText}</p>
+    </div>
+  </div>;
 
   return (
     <main className="app-shell">
@@ -910,18 +922,11 @@ export default function Home() {
                   <div className="main-products">
                     {store.products.slice(0, 2).map((item) => <MenuProduct key={item.id} product={item} main selected={selectedId === item.id} onSelect={() => { setSelectedId(item.id); setTab("menu"); }} />)}
                   </div>
-                  <div className="secondary-products">
+                  <div className={`secondary-products ${landscape && store.twoTierEnabled && columns === 4 && secondaryCount % columns === 1 ? "expand-last-product" : ""}`}>
                     {store.products.slice(2).map((item) => <MenuProduct key={item.id} product={item} selected={selectedId === item.id} onSelect={() => { setSelectedId(item.id); setTab("menu"); }} />)}
+                    {landscape && store.twoTierEnabled && twoTierPanel}
                   </div>
-                  {store.twoTierEnabled && <div className="two-tier-panel">
-                    <div className="two-tier-image">
-                      {store.twoTierImage ? <img src={store.twoTierImage} alt="2단 케이크 안내" /> : <span>🎂<small>별도 사진 추가</small></span>}
-                    </div>
-                    <div className="two-tier-copy">
-                      <b>{store.twoTierTitle}</b>
-                      <p>{store.twoTierText}</p>
-                    </div>
-                  </div>}
+                  {!landscape && store.twoTierEnabled && twoTierPanel}
                 </section>
                 <footer><span>HARE,HARE CAKE MENU</span><span>{store.name}</span></footer>
               </div>

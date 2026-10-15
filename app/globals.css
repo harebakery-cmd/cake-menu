@@ -536,19 +536,34 @@ button { color: inherit; }
 .orientation-landscape .menu-border { padding: 16px 22px 12px; }
 .orientation-landscape .menu-header { min-height: 110px; }
 .orientation-landscape .logo-space { height: 54px; }
-.orientation-landscape .product-area { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-rows: minmax(0, 1fr) auto; gap: 8px 22px; }
+.orientation-landscape .product-area { display: grid; grid-template-columns: minmax(0, 35fr) minmax(0, 65fr); grid-template-rows: minmax(0, 1fr); gap: 18px; }
 .orientation-landscape .main-products { grid-column: 1; grid-row: 1; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .orientation-landscape .main-product { min-height: 0; }
-.orientation-landscape .main-product .cake-image { max-width: 140px; height: 134px; }
-.orientation-landscape .secondary-products { grid-column: 2; grid-row: 1 / 3; gap: 8px; }
-.orientation-landscape .two-tier-panel { grid-column: 1; grid-row: 2; width: 100%; min-height: 96px; padding: 0; }
-.orientation-landscape .two-tier-image { height: 90px; max-width: 90px; }
+.orientation-landscape .main-product .cake-image { max-width: 160px; height: 154px; }
+.orientation-landscape .secondary-products { grid-column: 2; grid-row: 1; grid-template-rows: repeat(var(--landscape-rows), minmax(0, 1fr)); gap: 8px; }
+.orientation-landscape .secondary-products.expand-last-product > .menu-product:last-of-type { grid-column: span 2; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; text-align: left; }
+.orientation-landscape .secondary-products.expand-last-product > .menu-product:last-of-type .cake-image { flex: 0 0 45%; width: 45%; height: 100%; align-items: center; }
+.orientation-landscape .secondary-products.expand-last-product > .menu-product:last-of-type .product-copy { flex: 1 1 auto; width: auto; text-align: left; }
+.orientation-landscape .secondary-products .two-tier-panel {
+  grid-column: -3 / -1;
+  grid-row: -2 / -1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 10px;
+  border: 1px solid #e9dbd0;
+  border-radius: 6px;
+  background: #fbf7f3;
+}
+.orientation-landscape .two-tier-image { height: 125px; max-width: 125px; }
+.orientation-landscape .two-tier-image span { font-size: 48px; }
+.orientation-landscape .two-tier-copy b { font-size: calc(var(--tier-title-size) * 1.12); }
 .paper-a5.orientation-landscape .menu-border { padding: 12px 14px 10px; }
 .paper-a5.orientation-landscape .menu-header { min-height: 90px; }
 .paper-a5.orientation-landscape .logo-space { height: 42px; }
 .paper-a5.orientation-landscape .product-area { gap: 6px 14px; }
 .paper-a5.orientation-landscape .main-product .cake-image { height: 106px; max-width: 110px; }
-.paper-a5.orientation-landscape .two-tier-panel { min-height: 80px; }
+.paper-a5.orientation-landscape .secondary-products .two-tier-panel { padding: 6px; }
 .paper-a5.orientation-landscape .two-tier-image { height: 70px; max-width: 70px; }
 @media screen and (max-width: 760px) {
   .preview-stage { overflow: auto; }
