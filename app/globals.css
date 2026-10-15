@@ -331,7 +331,7 @@ button { color: inherit; }
 .color-control { display: flex; align-items: center; gap: 5px; height: 36px; border: 1px solid var(--line); border-radius: 7px; padding: 4px; background: #fff; }
 .color-control input { width: 26px; height: 26px; min-height: 0; border: 0; padding: 0; }
 .color-control code { font-size: 9px; color: var(--muted); }
-.paper-options { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.paper-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .paper-options button { min-height: 125px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
 .paper-options button.active { border: 2px solid var(--warm); background: #fff8f4; }
 .paper-options b { font-size: 12px; }
@@ -521,24 +521,51 @@ button { color: inherit; }
   .menu-page.paper-a5 { transform: scale(.78); margin-bottom: -175px; }
 }
 
+
+/* Preview and print share one layout; paper size scales it uniformly. */
+.paper-icon.a3 { width: 46px; height: 65px; }
+.print-direction-label { margin: 16px 0 8px; font-size: 12px; font-weight: 600; }
+.orientation-options { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.orientation-options button { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.orientation-options button.active { border: 2px solid var(--warm); background: #fff8f4; }
+.direction-icon { width: 17px; height: 24px; border: 1px solid #a9a197; }
+.direction-icon.landscape { width: 24px; height: 17px; }
+.print-sheet.landscape { min-width: 990px; min-height: 700px; }
+.menu-page.orientation-landscape { width: 990px; height: 700px; }
+.menu-page.paper-a5.orientation-landscape { width: 797px; height: 560px; }
+.orientation-landscape .menu-border { padding: 16px 22px 12px; }
+.orientation-landscape .menu-header { min-height: 110px; }
+.orientation-landscape .logo-space { height: 54px; }
+.orientation-landscape .product-area { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); grid-template-rows: minmax(0, 1fr) auto; gap: 8px 22px; }
+.orientation-landscape .main-products { grid-column: 1; grid-row: 1; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.orientation-landscape .main-product { min-height: 0; }
+.orientation-landscape .main-product .cake-image { max-width: 140px; height: 134px; }
+.orientation-landscape .secondary-products { grid-column: 2; grid-row: 1 / 3; gap: 8px; }
+.orientation-landscape .two-tier-panel { grid-column: 1; grid-row: 2; width: 100%; min-height: 96px; padding: 0; }
+.orientation-landscape .two-tier-image { height: 90px; max-width: 90px; }
+.paper-a5.orientation-landscape .menu-border { padding: 12px 14px 10px; }
+.paper-a5.orientation-landscape .menu-header { min-height: 90px; }
+.paper-a5.orientation-landscape .logo-space { height: 42px; }
+.paper-a5.orientation-landscape .product-area { gap: 6px 14px; }
+.paper-a5.orientation-landscape .main-product .cake-image { height: 106px; max-width: 110px; }
+.paper-a5.orientation-landscape .two-tier-panel { min-height: 80px; }
+.paper-a5.orientation-landscape .two-tier-image { height: 70px; max-width: 70px; }
+@media screen and (max-width: 760px) {
+  .preview-stage { overflow: auto; }
+  .print-sheet.landscape { min-width: 660px; min-height: 470px; }
+  .menu-page.orientation-landscape { transform: scale(.66); transform-origin: top left; margin: 0 -336px -238px 0; }
+  .menu-page.paper-a5.orientation-landscape { transform: scale(.78); margin: 0 -175px -123px 0; }
+}
 @media print {
-  @page { size: A4 portrait; margin: 0; }
-  html, body { width: 210mm; height: 297mm; background: white !important; }
+  html, body { width: auto; height: auto; min-height: 0; background: white !important; }
   .topbar, .left-panel, .preview-toolbar { display: none !important; }
-  .workspace, .preview-stage, .print-sheet { display: block; width: 210mm; height: 297mm; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: visible; background: white; }
-  .menu-page { box-shadow: none; transform: none !important; margin: 0 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .menu-page.paper-a4 { width: 210mm; height: 297mm; padding: 5mm; }
-  .menu-page.paper-a5 {
-    width: 146mm;
-    height: 208mm;
-    padding: 4mm;
-    position: absolute;
-    left: 32mm;
-    top: 44.5mm;
-  }
+  .app-shell { min-height: 0; }
+  .workspace, .preview-stage { display: block; width: auto; height: auto; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: visible; background: white; }
+  .print-sheet, .print-sheet.landscape { display: grid; place-items: center; width: var(--print-width); height: var(--print-height); min-width: 0; min-height: 0; margin: 0; padding: 0; background: white; break-inside: avoid; }
+  .menu-page { box-shadow: none; transform: none !important; margin: 0 !important; zoom: var(--print-scale); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .menu-product { pointer-events: none; }
   .menu-product.editing { border-color: transparent; background: transparent; }
-  .crop { display: block; position: absolute; width: 6mm; height: 6mm; z-index: 20; }
+  .paper-a5 .crop { display: block; position: absolute; width: 6mm; height: 6mm; z-index: 20; }
   .paper-a5 .corner-tl { left: -4mm; top: -4mm; border-right: .25mm solid #000; border-bottom: .25mm solid #000; }
   .paper-a5 .corner-tr { right: -4mm; top: -4mm; border-left: .25mm solid #000; border-bottom: .25mm solid #000; }
   .paper-a5 .corner-bl { left: -4mm; bottom: -4mm; border-right: .25mm solid #000; border-top: .25mm solid #000; }

@@ -47,7 +47,8 @@ type StoreData = {
   products: Product[];
   styles: Record<TypeKey, TypeStyle>;
   lineHeight: number;
-  paper: "a4" | "a5";
+  paper: "a3" | "a4" | "a5";
+  orientation: "portrait" | "landscape";
 };
 
 const STORAGE_KEY = "hare-cake-menu-stores-v1";
@@ -181,12 +182,15 @@ const initialStore = (): StoreData => ({
   styles: defaultStyles,
   lineHeight: 1.25,
   paper: "a4",
+  orientation: "portrait",
 });
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const uid = () => crypto.randomUUID();
 const normalizeStoreData = (item: StoreData): StoreData => ({
   ...item,
+  paper: ["a3", "a4", "a5"].includes(item.paper) ? item.paper : "a4",
+  orientation: item.orientation === "landscape" ? "landscape" : "portrait",
   logo: !item.logo || item.logo.endsWith("/harehare-wordmark.png") || item.logo === "/harehare-logo.png" ? DEFAULT_LOGO : item.logo,
   logoWidth: item.logoSizeV2 ? (item.logoWidth || 75) : Math.max(35, Math.round((item.logoWidth || 150) * 0.5)),
   logoSizeV2: true,
@@ -387,8 +391,22 @@ export default function Home() {
 
   const store = stores.find((item) => item.id === activeId) || stores[0];
   const product = store?.products.find((item) => item.id === selectedId) || store?.products[0];
+  const landscape = store?.orientation === "landscape";
+  const paper = store?.paper || "a4";
+  const paperLabel = paper === "a5" ? "A5 재단" : paper.toUpperCase();
+  const shortSide = paper === "a3" ? 297 : paper === "a5" ? 146 : 210;
+  const longSide = paper === "a3" ? 420 : paper === "a5" ? 208 : 297;
+  const sheetWidth = landscape ? longSide : shortSide;
+  const sheetHeight = landscape ? shortSide : longSide;
+  const printPaper = paper === "a5" ? "A4" : paper.toUpperCase();
+  const printWidth = landscape ? (paper === "a3" ? 420 : 297) : (paper === "a3" ? 297 : 210);
+  const printHeight = landscape ? (paper === "a3" ? 297 : 210) : (paper === "a3" ? 420 : 297);
+  const designWidth = landscape ? (paper === "a5" ? 797 : 990) : (paper === "a5" ? 560 : 700);
+  const printScale = sheetWidth * (96 / 25.4) / designWidth;
   const secondaryCount = Math.max(0, (store?.products.length || 0) - 2);
-  const columns = secondaryCount <= 4 ? Math.min(4, Math.max(2, secondaryCount)) : secondaryCount <= 9 ? 3 : 4;
+  const columns = landscape
+    ? secondaryCount <= 6 ? 3 : secondaryCount <= 12 ? 4 : 5
+    : secondaryCount <= 4 ? Math.min(4, Math.max(2, secondaryCount)) : secondaryCount <= 9 ? 3 : 4;
   const rows = secondaryCount ? Math.ceil(secondaryCount / columns) : 0;
 
   const updateStore = (patch: Partial<StoreData>) => {
@@ -853,15 +871,19 @@ export default function Home() {
           {tab === "print" && <div className="panel-body">
             <div className="section-heading"><span><b>인쇄 설정</b><small>인쇄 전 미리보기를 확인하세요</small></span></div>
             <div className="paper-options">
-              <button className={store.paper === "a4" ? "active" : ""} onClick={() => updateStore({ paper: "a4" })}><span className="paper-icon a4" /><b>A4</b><small>210 × 297mm</small></button>
-              <button className={store.paper === "a5" ? "active" : ""} onClick={() => updateStore({ paper: "a5" })}><span className="paper-icon a5" /><b>A5 재단</b><small>146 × 208mm</small></button>
+              {(["a3", "a4", "a5"] as const).map((size) => <button key={size} aria-pressed={store.paper === size} className={store.paper === size ? "active" : ""} onClick={() => updateStore({ paper: size })}><span className={`paper-icon ${size}`} /><b>{size === "a5" ? "A5 재단" : size.toUpperCase()}</b><small>{size === "a3" ? "297 × 420mm" : size === "a4" ? "210 × 297mm" : "146 × 208mm"}</small></button>)}
+            </div>
+            <div className="print-direction-label">인쇄 방향</div>
+            <div className="orientation-options">
+              <button aria-pressed={!landscape} className={!landscape ? "active" : ""} onClick={() => updateStore({ orientation: "portrait" })}><span className="direction-icon" />세로</button>
+              <button aria-pressed={landscape} className={landscape ? "active" : ""} onClick={() => updateStore({ orientation: "landscape" })}><span className="direction-icon landscape" />가로</button>
             </div>
             <div className="print-note">
-              <b>{store.paper === "a4" ? "A4 실제 크기" : "A5 -2mm 재단 크기"}</b>
-              <p>{store.paper === "a4" ? "A4 용지 전체에 메뉴판이 인쇄됩니다." : "가로와 세로를 각각 2mm 줄인 146 × 208mm입니다. 검은 재단선이 함께 인쇄됩니다."}</p>
+              <b>{paperLabel} · {landscape ? "가로" : "세로"} · {sheetWidth} × {sheetHeight}mm</b>
+              <p>{paper === "a5" ? "A4 용지 가운데에 재단선과 함께 인쇄됩니다. 재단 후 크기는 " + sheetWidth + " × " + sheetHeight + "mm입니다." : paperLabel + " 용지 크기에 맞춰 메뉴판이 인쇄됩니다."}</p>
             </div>
             <button className="button ink full" onClick={() => window.print()}>인쇄 미리보기 열기</button>
-            <p className="helper">인쇄 창에서 배율은 100%, 여백은 없음, 배경 그래픽은 켜짐으로 설정해 주세요.</p>
+            <p className="helper">인쇄 창에서 용지는 {printPaper}, 방향은 {landscape ? "가로" : "세로"}, 배율은 100%, 여백은 없음, 배경 그래픽은 켜짐으로 설정해 주세요.</p>
           </div>}
         </aside>
 
@@ -869,10 +891,11 @@ export default function Home() {
           <div className="preview-toolbar">
             <span><i className="live-dot" /> 실시간 미리보기</span>
             <span>자동 배치 <b>{columns}열 × {rows}행</b></span>
-            <span>{store.paper === "a4" ? "A4 · 210 × 297mm" : "A5 재단 · 146 × 208mm"}</span>
+            <span>{paperLabel} · {landscape ? "가로" : "세로"} · {sheetWidth} × {sheetHeight}mm</span>
           </div>
-          <div className={`print-sheet ${store.paper}`}>
-            <article className={`menu-page paper-${store.paper}`} style={pageStyle}>
+          <style>{`@page { size: ${printPaper} ${store.orientation}; margin: 0; }`}</style>
+          <div className={`print-sheet ${store.paper} ${store.orientation}`} style={{ "--print-width": `${printWidth}mm`, "--print-height": `${printHeight}mm`, "--print-scale": printScale } as CSSProperties}>
+            <article className={`menu-page paper-${store.paper} orientation-${store.orientation}`} style={pageStyle}>
               <div className="crop corner-tl" /><div className="crop corner-tr" /><div className="crop corner-bl" /><div className="crop corner-br" />
               <div className="menu-border">
                 <header className="menu-header">
